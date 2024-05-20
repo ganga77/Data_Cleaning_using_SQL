@@ -55,3 +55,127 @@ where row_num > 1;
 
 Select * from layoffs.layoffs_staging2
 where row_num > 1;
+
+-- Standardizing data
+
+Select * from layoffs.layoffs_staging2;
+
+Update layoffs.layoffs_staging2
+set company = TRIM(company);
+
+Select industry from layoffs.layoffs_staging2
+order by 1;
+
+Select * from layoffs.layoffs_staging2
+where industry LIKE 'Crypto%';
+
+update layoffs.layoffs_staging2
+set industry = 'Crypto'
+where industry like 'Crypto%';
+
+
+Select Distinct country 
+from layoffs.layoffs_staging2
+order by 1;
+
+Select country , TRIM(TRAILING '.' FROM country) from layoffs.layoffs_staging2 order by 1;
+
+
+update layoffs.layoffs_staging2
+set country = TRIM(TRAILING '.' FROM country);
+
+
+update  layoffs.layoffs_staging2
+set `date`  = STR_TO_DATE(`date`, '%m/%d/%Y');
+
+ALTER table layoffs.layoffs_staging2
+MODIFY COLUMN `date` Date;
+
+-- Null Values
+
+Select * from 
+layoffs.layoffs_staging2
+where industry IS NULL;
+
+UPDATE layoffs.layoffs_staging2
+set industry = null
+where industry = '';
+
+Select *
+from layoffs.layoffs_staging2 t2
+JOIN layoffs.layoffs t1
+On t1.company = t2.company
+where (t1.industry IS NOT NULL)
+and 
+t2.industry IS NULL;
+
+Update layoffs.layoffs_staging2 t2
+JOIN layoffs.layoffs_staging t1
+On t1.company = t2.company
+set t2.industry = t1.industry
+where (t2.industry is NULL)
+and 
+t1.industry IS NOT NULL;
+
+
+Select * 
+from layoffs.layoffs_staging2
+where total_laid_off IS NULL
+AND percentage_laid_off IS NULL;
+
+DELETE 
+from layoffs.layoffs_staging2
+where total_laid_off IS NULL
+AND percentage_laid_off IS NULL;
+
+
+Select * from layoffs.layoffs_staging2;
+
+-- Data Analysis
+
+Select YEAR(`date`), SUM(total_laid_off)
+from layoffs.layoffs_staging2
+group by YEAR(`date`)
+order by 1;
+
+Select SUBSTR(`date`,1, 7) as `MONTH`, SUM(total_laid_off) as total_off
+from layoffs.layoffs_staging2
+where  SUBSTR(`date`,1, 7) IS NOT NULL
+GROUP BY `MONTH`
+order by 1;
+
+-- Total layoffs by month and totalling them 
+WITH Rolling_total AS(
+Select SUBSTR(`date`,1, 7) as `MONTH`, SUM(total_laid_off) as total_off
+from layoffs.layoffs_staging2
+where  SUBSTR(`date`,1, 7) IS NOT NULL
+GROUP BY `MONTH`
+order by 1
+)
+Select `MONTH`, total_off, SUM(total_off) OVER(ORDER BY `MONTH`)
+from Rolling_total
+GROUP BY `MONTH`;
+
+
+
+-- Ranking which company fired most employees according to years
+WITH Highest_laid AS (
+Select company, YEAR(`date`) as `DATE`, SUM(total_laid_off) as total_laid
+from layoffs.layoffs_staging2
+GROUP BY company, YEAR(`date`)
+order by 3 DESC
+)
+Select company, `DATE`, total_laid,
+DENSE_RANK() OVER(PARTITION BY `DATE` ORDER BY total_laid DESC) as Ranking_Companies_Firing_MOST
+from Highest_laid;
+
+
+
+
+
+
+
+
+
+
+
